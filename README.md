@@ -24,12 +24,18 @@ To use the tool, please download the data products (datacubes and maps) of objec
 
 ### Download HSC image (optional)
 This requires to have an account at [HSC-SSP website](https://hsc-release.mtk.nao.ac.jp/doc/).  
-1. Create sql string from your csv file. Enter `python csv2sql.py [*.csv] [radius] [*.txt]` in command line, and the sql string will be in the output file.
-2. Copy-paste the string to HSC sql service to get the result. Crossmatch the result with original catalog to obtain the tract each object locates in, and save the result in a new csv file in the folder (suppose it to be 'HSC_tract.csv').
-3. Download HSC image from the HscMap server. Enter `python download_HSC.py HSC_tract.csv`, and the download will start soon. It may take a time as the code download files via a spider. 
+1. Create cutout table string from your csv file. Enter `python HSCimage.py [*.csv] cutout [Output]` in command line, and the table string will be in the output file.
+2. Download cutout from [HSC-SSP cutout service](https://hsc-release.mtk.nao.ac.jp/das_cutout/pdr2/). Extract the file.
+3. Change the names of FITS files with `python HSCimage.py [*.csv] cutout [Output]` so that `sami_viz` can read the image. 
 
 ### Set PATH to the file
 Edit config.ini to set the right path. Leave terms blank for the files not downloaded yet.
 
 ### Open the GUI
 Now type `python sami_viz.py` to open the GUI. Feel free to explore the SAMI data!
+
+## Known issues
+### Boundery condition
+The code will stop work when invalid path / sami_id is set.
+### Bad cutout
+The code will stop work when the sizes of HSC images are not the same.
