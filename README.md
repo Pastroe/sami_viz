@@ -36,6 +36,6 @@ Now type `python sami_viz.py` to open the GUI. Feel free to explore the SAMI dat
 
 ## Known issues
 ### Boundery condition
-The code will stop work when invalid path / sami_id is set.
+The code will stop working when invalid path / sami_id is set.
 ### Bad cutout
-The code will stop work when the sizes of HSC images are not the same.
+The code will stop working when the sizes of HSC images are not the same.
