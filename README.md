@@ -32,7 +32,7 @@ This requires to have an account at [HSC-SSP website](https://hsc-release.mtk.na
 Edit config.ini to set the right path. Leave terms blank for the files not downloaded yet.
 
 ### Open the GUI
-Now type `python sami_viz.py` to open the GUI. Feel free to explore the SAMI data!
+Now type `python viz_main.py` to open the GUI. Feel free to explore the SAMI data!
 
 ## Known issues
 ### Boundery condition
