@@ -7,6 +7,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg    as FigureCan
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 matplotlib.use('Qt5Agg')
 
+from scipy.interpolate import interp1d
+
 import numpy as np
 from einops import repeat
 
@@ -26,6 +28,34 @@ def snap(data, permin = 30, permax = 100):
 
     image = np.log(image - np.percentile(image.flatten(),permin) + 1) / np.max(np.log(image - np.percentile(image.flatten(),permin) + 1))
     return image
+
+def skewness(self):
+    wav = self.wav
+    flux = self.cflux
+    wav_min = min(self.wav_min_max)
+    wav_max = max(self.wav_min_max)
+    mask = (wav> wav_min) * (wav < wav_max)
+    d_wav = (wav[mask][-1] - wav[mask][0]) / (np.sum(mask) - 1)
+    flux_mask = flux[mask]
+    s = np.shape(flux_mask)
+    wav_mask = repeat(wav[mask], 'a -> a b c', b = s[1], c = s[2])
+    d_wav = (wav_mask[-1] - wav_mask[0])[0,0] / (np.sum(mask) - 1)
+
+    continuum = interp1d(np.array([wav_min, wav_max]), 
+                        np.array([np.mean(flux_mask[ 0: 3], axis = 0), 
+                                np.mean(flux_mask[ 0: 3], axis = 0)]), 
+                        
+                        axis=0)
+    line = flux_mask - continuum(wav_mask[:, 0, 0])
+    line[line < 0] = 0
+    wav_mean = np.sum(line * wav_mask, axis = 0) / np.sum(line, axis = 0)
+    wav_mode = np.argmax(flux_mask, axis = 0) * d_wav + wav_mask[0]
+    wav0 = wav_mask - repeat(wav_mean, 'b c -> a b c', a = s[0])
+    var = np.sum(wav0 ** 2 * line, axis = 0) / np.sum(line, axis = 0)
+    skew = 3 * (wav_mean - wav_mode) / var ** (1 / 2)
+    skew[self.snr < 3] = np.nan
+    skew[np.isnan(self.snr)] = np.nan
+    return skew
 
 # Plot stuff
 def plot_(self):
@@ -132,7 +162,6 @@ def mapsnap(self):
         self.axes[7].set_ylim([-0.5, 49.5])
         self.axes[7].scatter(self.pos_x, self.pos_y, marker = '+', c = 'yellow', s = 1000)
         if self.HSC_avail:
-            print(np.shape(snap(self.HSC[2])), np.shape(snap(self.HSC[1])), np.shape(snap(self.HSC[0])))
             RGB = np.array([snap(self.HSC[2]), snap(self.HSC[1]), snap(self.HSC[0])]).transpose([1, 2, 0])
             self.axes[7].imshow(RGB, transform=self.axes[7].get_transform(self.wcs_HSC))
         if self.map == 'flux':
@@ -141,7 +170,7 @@ def mapsnap(self):
             image = self.gasvel[self.component - 1] + 0
             scale_max = np.percentile(image[~np.isnan(image)], 99)
             scale_min = np.percentile(image[~np.isnan(image)], 1)
-            map_image = self.axes[7].contourf(image, cmap = 'RdBu_r',vmax = scale_max, vmin = scale_min, linewidths = 5, levels = 4, alpha = 0.5)
+            map_image = self.axes[7].imshow(image, cmap = 'RdBu_r',vmax = scale_max, vmin = scale_min, alpha = 0.5)
             self.fig.colorbar(map_image, ax = self.axes[7], cax = self.axes[8])
             self.axes[7].set_title('%s-comp velocity map of SAMI %s, 1 \" = %.2f kpc'%(self.component, self.sami_id, self.scale_asec2kpc))
     
@@ -149,33 +178,42 @@ def mapsnap(self):
             image = self.stevel + 0
             scale_max = np.percentile(image[~np.isnan(image)], 99)
             scale_min = np.percentile(image[~np.isnan(image)], 1)
-            map_image = self.axes[7].contourf(image, cmap = 'RdBu_r',vmax = scale_max, vmin = scale_min, linewidths = 5, levels = 4, alpha = 0.5)
+            map_image = self.axes[7].imshow(image, cmap = 'RdBu_r',vmax = scale_max, vmin = scale_min, alpha = 0.5)
             self.fig.colorbar(map_image, ax = self.axes[7], cax = self.axes[8])
             self.axes[7].set_title('stellar velocity map of SAMI %s, 1 \" = %.2f kpc'%(self.sami_id, self.scale_asec2kpc))
             
         if self.map == 'gasd' and self.gasd_avail:
             image = self.gasdis[self.component - 1] + 0
             scale_max = np.percentile(image[~np.isnan(image)], 99)
-            map_image = self.axes[7].contourf(image, cmap = 'Reds',vmax = scale_max, vmin = 0, linewidths = 5, levels = 4, alpha = 0.5)
+            map_image = self.axes[7].imshow(image, cmap = 'Reds',vmax = scale_max, vmin = 0, alpha = 0.5)
             self.fig.colorbar(map_image, ax = self.axes[7], cax = self.axes[8])
             self.axes[7].set_title('%s-comp velocity dispersion map of SAMI %s, 1 \" = %.2f kpc'%(self.component, self.sami_id, self.scale_asec2kpc))
         
         if self.map == 'sted' and self.sted_avail:
             image = self.stedis + 0
             scale_max = np.percentile(image[~np.isnan(image)], 99)
-            map_image = self.axes[7].contourf(image, cmap = 'Reds',vmax = scale_max, vmin = 0, linewidths = 5, levels = 4, alpha = 0.5)
+            map_image = self.axes[7].imshow(image, cmap = 'Reds',vmax = scale_max, vmin = 0, alpha = 0.5)
             self.fig.colorbar(map_image, ax = self.axes[7], cax = self.axes[8])
             self.axes[7].set_title('stellar velocity map of SAMI %s, 1 \" = %.2f kpc'%(self.sami_id, self.scale_asec2kpc))
             
         if self.map == 'LWM' and self.cflux is not None:
             mask = (self.wav > min(self.wav_min_max)) * (self.wav < max(self.wav_min_max))
             lwm = np.sum(self.cflux[mask], axis = 0)
-            map_image = self.axes[7].contourf(np.log10(lwm), cmap = 'Greys_r', linewidths = 5, levels = 4, alpha = 0.5)
+            map_image = self.axes[7].imshow(np.log10(lwm), cmap = 'Greys_r', alpha = 0.5)
             self.fig.colorbar(map_image, ax = self.axes[7], cax = self.axes[8])
             self.axes[7].set_title('Line Wing Map between %.1f AA and %.1f AA of SAMI %s, 1 \" = %.2f kpc'%(min(self.wav_min_max), max(self.wav_min_max), self.sami_id, self.scale_asec2kpc))
     
         if self.map == 'BPT' and self.lines_avail:
             self.axes[7].imshow(self.BPT_mosaic, alpha=0.2)
+            
+        if self.map == 'Sk2' and self.lines_avail and self.cflux is not None:
+            sk2 = skewness(self)
+            map_image = self.axes[7].imshow(sk2, cmap = "RdBu_r", origin = 'lower', vmin = -3 , vmax = 3, alpha = 0.5)
+            self.axes[7].contour(sk2, cmap = "RdBu_r", origin = 'lower', levels = [-1, 0, 1])
+
+            self.fig.colorbar(map_image, ax = self.axes[7], cax = self.axes[8])
+            self.axes[7].set_title('skewness Map between %.1f AA and %.1f AA of SAMI %s, 1 \" = %.2f kpc'%(min(self.wav_min_max), max(self.wav_min_max), self.sami_id, self.scale_asec2kpc))
+            print(sk2[self.pos_x,self.pos_y])
 
     else:
         if self.map == 'flux':
@@ -189,7 +227,6 @@ def mapsnap(self):
             self.axes[7].set_title('%s-comp velocity map of SAMI %s, 1 \" = %.2f kpc'%(self.component, self.sami_id, self.scale_asec2kpc))
     
         if self.map == 'stev' and self.stev_avail:
-            print(self.stev_avail)
             image = self.stevel + 0
             scale_max = np.percentile(image[~np.isnan(image)], 99)
             scale_min = np.percentile(image[~np.isnan(image)], 1)
@@ -222,7 +259,16 @@ def mapsnap(self):
             map_image = self.axes[7].imshow(np.log10(lwm), cmap = 'Greys_r')
             self.fig.colorbar(map_image, ax = self.axes[7], cax = self.axes[8])
             self.axes[7].set_title('Line Wing Map between %.1f AA and %.1f AA of SAMI %s, 1 \" = %.2f kpc'%(min(self.wav_min_max), max(self.wav_min_max), self.sami_id, self.scale_asec2kpc))
-    
+
+        if self.map == 'Sk2' and self.lines_avail and self.cflux is not None:
+            sk2 = skewness(self)
+            map_image = self.axes[7].imshow(sk2, cmap = "RdBu_r", origin = 'lower', vmin = -3 , vmax = 3)
+            self.axes[7].contour(sk2, cmap = "RdBu_r", origin = 'lower', levels = [-1, 0, 1])
+
+            self.fig.colorbar(map_image, ax = self.axes[7], cax = self.axes[8])
+            self.axes[7].set_title('skewness Map between %.1f AA and %.1f AA of SAMI %s, 1 \" = %.2f kpc'%(min(self.wav_min_max), max(self.wav_min_max), self.sami_id, self.scale_asec2kpc))
+
+
         self.axes[7].grid()
         self.axes[7].scatter(self.pos_x, self.pos_y, marker = '+', c = 'yellow', s = 1000)
     if not self.com_view and self.lines_avail:

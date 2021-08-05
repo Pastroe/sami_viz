@@ -76,6 +76,7 @@ class My_Main_window(QtWidgets.QMainWindow):
         self.maps_actions.append(QtWidgets.QAction("Stellar Velocity Dispersion",self.menu_maps))
         self.maps_actions.append(QtWidgets.QAction("BPT diagram",self.menu_maps))
         self.maps_actions.append(QtWidgets.QAction("Line Wing Map",self.menu_maps))
+        self.maps_actions.append(QtWidgets.QAction("Pearson Skewness 2",self.menu_maps))
         self.maps_actions.append(QtWidgets.QAction("Component",self.menu_maps))
         
         for action in self.maps_actions:
@@ -215,6 +216,8 @@ class My_Main_window(QtWidgets.QMainWindow):
             self.map = 'BPT'
         elif sender.text() == "Line Wing Map":
             self.map = 'LWM'
+        elif sender.text() == "Pearson Skewness 2":
+            self.map = 'Sk2'
         elif sender.text() == "Component":
             text, ok = QInputDialog.getItem(self, 'Which component', 'Enter # of component here:', ['1', '2', '3'], 0, False)
             self.component = int(text)
